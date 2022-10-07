@@ -7,30 +7,29 @@ const App = () => {
     });
 
     const canvas = useRef(null);
+    const ws = useRef(null);
 
     useEffect(() => {
-        canvas.current = new WebSocket('ws://localhost:8000/canvas');
+        ws.current = new WebSocket('ws://localhost:8000/draw');
 
-    });
+    }, []);
 
     const canvasMouseMoveHandler = event => {
         if (state.mouseDown) {
             const clientX = event.clientX;
             const clientY = event.clientY;
-            setState(prevState => {
-                return {
+            setState(prevState => ({
                     ...prevState,
                     pixelsArray: [...prevState.pixelsArray, {
                         x: clientX,
                         y: clientY
                     }]
-                };
-            });
+            }));
 
             const context = canvas.current.getContext('2d');
-            // context.scale(2, 2);
-            // context.lineCap = 'round';
-            // context.lineWidth = 5;
+            context.scale(2, 2);
+            context.lineCap = 'round';
+            context.lineWidth = 5;
             const imageData = context.createImageData(10, 10);
             const d = imageData.data;
 
@@ -48,6 +47,11 @@ const App = () => {
     };
 
     const mouseUpHandler = event => {
+        console.log([...state.pixelsArray]);
+        ws.current.send(JSON.stringify({
+            type: 'CREATE_LINE',
+            message: state.pixelsArray,
+        }));
         // Где-то здесь отправлять массив пикселей на сервер
         setState({...state, mouseDown: false, pixelsArray: []});
     };
