@@ -1,17 +1,40 @@
 import React, {useState, useRef, useEffect} from 'react';
 
+const circle = (x, y, ctx, color) => {
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, 2 * Math.PI);
+    ctx.strokeStyle = color;
+    ctx.stroke();
+};
+
 const App = () => {
+    const [locations, setLocations] = useState([]);
+    const canvasRef = useRef(null);
+    const [color, setColor] = useState('red');
+    const ws = useRef(null);
     const [state, setState] = useState({
         mouseDown: false,
         pixelsArray: []
     });
 
-    const canvas = useRef(null);
-    const ws = useRef(null);
-
     useEffect(() => {
         ws.current = new WebSocket('ws://localhost:8000/draw');
+        const ctx = canvasRef.current.getContext('2d');
 
+        ws.current.onmessage = event => {
+            const decodedMessage = JSON.parse(event.data);
+
+            if (decodedMessage.type === 'NEW_LINE') {
+                setLocations(prev => [...prev, decodedMessage.message]);
+                decodedMessage.message.forEach(location => circle(location.x, location.y, ctx, color));
+            }
+
+            if (decodedMessage.type === 'CONNECTED') {
+                setLocations(decodedMessage.drawing);
+                decodedMessage.drawing.forEach(location => circle(location.x, location.y, ctx, color));
+            }
+        };
+        // eslint-disable-next-line
     }, []);
 
     const canvasMouseMoveHandler = event => {
@@ -19,51 +42,37 @@ const App = () => {
             const clientX = event.clientX;
             const clientY = event.clientY;
             setState(prevState => ({
-                    ...prevState,
-                    pixelsArray: [...prevState.pixelsArray, {
-                        x: clientX,
-                        y: clientY
-                    }]
+                ...prevState,
+                pixelsArray: [...prevState.pixelsArray, {
+                    x: clientX,
+                    y: clientY
+                }]
             }));
 
-            const context = canvas.current.getContext('2d');
-            context.scale(2, 2);
-            context.lineCap = 'round';
-            context.lineWidth = 5;
-            const imageData = context.createImageData(10, 10);
-            const d = imageData.data;
-
-            d[0] = 0;
-            d[1] = 0;
-            d[2] = 0;
-            d[3] = 255;
-
-            context.putImageData(imageData, event.clientX, event.clientY);
+            const ctx = canvasRef.current.getContext('2d');
+            circle(clientX, clientY, ctx, color);
         }
     };
 
-    const mouseDownHandler = event => {
+    const mouseDownHandler = () => {
         setState({...state, mouseDown: true});
     };
 
-    const mouseUpHandler = event => {
-        console.log([...state.pixelsArray]);
+    const mouseUpHandler = () => {
         ws.current.send(JSON.stringify({
             type: 'CREATE_LINE',
-            message: state.pixelsArray,
+            message: [...state.pixelsArray],
         }));
-        // Где-то здесь отправлять массив пикселей на сервер
         setState({...state, mouseDown: false, pixelsArray: []});
     };
 
-    const onChange = e => {
-        console.log(e.target.value);
-    };
-
     return (
-        <div>
+        <>
+            <div style={{position: 'absolute'}} >
+                <input type="color" onChange={(e) => setColor(e.target.value)}/>
+            </div>
             <canvas
-                ref={canvas}
+                ref={canvasRef}
                 style={{border: '1px solid black'}}
                 width={800}
                 height={600}
@@ -71,8 +80,7 @@ const App = () => {
                 onMouseUp={mouseUpHandler}
                 onMouseMove={canvasMouseMoveHandler}
             />
-            <input style={{margin: '20px 0'}} type="color" onChange={onChange}/>
-        </div>
+        </>
     );
 };
 

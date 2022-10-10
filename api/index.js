@@ -8,12 +8,19 @@ const port = 8000;
 
 app.use(cors());
 
+const drawing = [];
 const activeConnections = {};
 
 app.ws('/draw', (ws, req) => {
     const id = nanoid();
+
+    console.log('Client connected id=', id);
     activeConnections[id] = ws;
-    console.log('conn', id);
+
+    ws.send(JSON.stringify({
+        type: 'CONNECTED',
+        drawing
+    }));
 
     ws.on('close', () => {
         console.log('Client disconnected! id=', id);
@@ -25,6 +32,7 @@ app.ws('/draw', (ws, req) => {
 
         switch (decodedMessage.type) {
             case 'CREATE_LINE':
+                drawing.push(...decodedMessage.message);
                 Object.keys(activeConnections).forEach(connId => {
                     const conn = activeConnections[connId];
 
