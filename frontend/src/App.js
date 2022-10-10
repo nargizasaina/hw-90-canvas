@@ -8,7 +8,6 @@ const circle = (x, y, ctx, color) => {
 };
 
 const App = () => {
-    const [locations, setLocations] = useState([]);
     const canvasRef = useRef(null);
     const [color, setColor] = useState('red');
     const ws = useRef(null);
@@ -25,12 +24,10 @@ const App = () => {
             const decodedMessage = JSON.parse(event.data);
 
             if (decodedMessage.type === 'NEW_LINE') {
-                setLocations(prev => [...prev, decodedMessage.message]);
                 decodedMessage.message.forEach(location => circle(location.x, location.y, ctx, color));
             }
 
             if (decodedMessage.type === 'CONNECTED') {
-                setLocations(decodedMessage.drawing);
                 decodedMessage.drawing.forEach(location => circle(location.x, location.y, ctx, color));
             }
         };
